@@ -77,6 +77,9 @@ class SelectorBIC(ModelSelector):
         :return: GaussianHMM object
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        LOG_FILENAME = '/home/sabau/IdeaProjects/AIND-Recognizer/model_selection.bic.log'
+        log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
+        # fallback
         best_score, selected_model = float("inf"), self.base_model(self.n_constant)
 
         for n in range(self.min_n_components, self.max_n_components+1):
@@ -95,10 +98,10 @@ class SelectorBIC(ModelSelector):
 
                 model = self.base_model(n)
                 log_l = model.score(self.X, self.lengths)
-                log.debug("n_features {} vs {}"
+                log.info("n_features {} vs {}"
                           .format(self.X.shape[1], self.n_features))
                 p = n ** 2 + 2 * n * model.n_features - 1
-                log.debug("logN {} vs {} vs "
+                log.info("logN {} vs {} vs "
                           .format(np.log(len((self.lengths))), np.log(n), np.log(self.X.shape[0])))
                 bic_score = -2 * log_l + p * np.log(n)
 
@@ -124,10 +127,11 @@ class SelectorDIC(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        LOG_FILENAME = '/home/sabau/IdeaProjects/AIND-Recognizer/model_selection.dic.log'
+        log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
+        best_score, selected_model = float("inf"), self.base_model(self.n_constant)
 
-        # TODO implement model selection based on DIC scores
-        raise NotImplementedError
-
+        return selected_model
 
 class SelectorCV(ModelSelector):
     ''' select best model based on average log Likelihood of cross-validation folds
@@ -136,6 +140,40 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        LOG_FILENAME = '/home/sabau/IdeaProjects/AIND-Recognizer/model_selection.cv.log'
+        log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
+        best_score, selected_model = float("inf"), self.base_model(self.n_constant)
+        # define the number of folds we would like to use
+        k_splits = 3
+        for n in range(self.min_n_components, self.max_n_components + 1):
+            log.info("start with {}".format(n))
+            if len(self.sequences) < 2:
+                continue
+            # in case we do not have enough data, let's say 2 is the minimum
+            split_method = KFold(n_splits=min(k_splits, len(self.sequences)))
+            cv_cumulative_score = 0.0
+            i = 0
+            # Cross validation loop, here we add logl
+            for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                X_train, length_train = combine_sequences(cv_train_idx, self.sequences)
+                X_test, length_test = combine_sequences(cv_test_idx, self.sequences)
+                try:
+                    # train a gaussian model
+                    _model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
+                                         random_state=self.random_state, verbose=False).fit(X_train, length_train)
 
-        # TODO implement model selection using CV
-        raise NotImplementedError
+                    # cross validate this model with the other portion of the sequences and keep track of its score
+                    cv_cumulative_score += float(_model.score(X_test, length_test))
+                    i += 1
+                    log.info("at indexes train {} and test {} we heve cumulative score of {}"
+                             .format(cv_train_idx, cv_test_idx, cv_cumulative_score))
+                except:
+                    pass
+            # average the score over the number of contributions
+            cv_score = cv_cumulative_score / i if i > 0 else float("-Inf")
+            if cv_score > best_score:
+                log.info("Old score {} was dethronized by score {} with {} components"
+                         .format(best_score, cv_score, n))
+                best_score, selected_model = cv_score, self.base_model(n)
+
+        return selected_model
