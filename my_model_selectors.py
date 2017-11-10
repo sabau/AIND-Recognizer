@@ -1,12 +1,14 @@
 import math
 import statistics
 import warnings
+import logging as log
 
 import numpy as np
 from hmmlearn.hmm import GaussianHMM
 from sklearn.model_selection import KFold
 from asl_utils import combine_sequences
-
+LOG_FILENAME = 'model_selection.log'
+log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
 
 class ModelSelector(object):
     '''
@@ -75,9 +77,39 @@ class SelectorBIC(ModelSelector):
         :return: GaussianHMM object
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        best_score, selected_model = float("inf"), self.base_model(self.n_constant)
 
-        # TODO implement model selection based on BIC scores
-        raise NotImplementedError
+        for n in range(self.min_n_components, self.max_n_components+1):
+            try:
+                # The term −2 log L decreases with increasing model complexity (more parameters),
+                #  whereas the penalties p log N increase with increasing complexity
+                # BIC = −2 * log L + p * log N
+                # l: likelihood of the fitted model
+                # p: number of parameters, I've found different ways of calculating
+                #    [n^2 + 2n * ft - 1] or
+                #    [n * (n-1) + 2n * ft - 1] in case some points are fixed after one selection
+                # n: number of data points
+
+                # self.X.shape[1] contains the number of features
+                # model.n_features contains the number of features
+
+                model = self.base_model(n)
+                log_l = model.score(self.X, self.lengths)
+                log.debug("n_features {} vs {}"
+                          .format(self.X.shape[1], self.n_features))
+                p = n ** 2 + 2 * n * model.n_features - 1
+                log.debug("logN {} vs {} vs "
+                          .format(np.log(len((self.lengths))), np.log(n), np.log(self.X.shape[0])))
+                bic_score = -2 * log_l + p * np.log(n)
+
+                if bic_score < best_score:
+                    log.info("Old score {} was dethronized by score {} with {} components"
+                             .format(best_score, bic_score, n))
+                    best_score, selected_model = bic_score, model
+            except Exception as e:
+                continue
+
+        return selected_model
 
 
 class SelectorDIC(ModelSelector):
