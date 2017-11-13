@@ -1,14 +1,13 @@
 import math
 import statistics
 import warnings
-import logging as log
+import logging
 
 import numpy as np
 from hmmlearn.hmm import GaussianHMM
 from sklearn.model_selection import KFold
 from asl_utils import combine_sequences
-LOG_FILENAME = 'model_selection.log'
-log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
+
 
 class ModelSelector(object):
     '''
@@ -29,6 +28,23 @@ class ModelSelector(object):
         self.max_n_components = max_n_components
         self.random_state = random_state
         self.verbose = verbose
+        LOG_FILENAME = 'model_s.log'
+        logger = logging.getLogger(self.__class__.__name__)
+        logger.setLevel(logging.DEBUG)
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler(LOG_FILENAME)
+        fh.setLevel(logging.DEBUG)
+        # create console handler with a higher log level
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.ERROR)
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        ch.setFormatter(formatter)
+        fh.setFormatter(formatter)
+        # add the handlers to logger
+        logger.addHandler(ch)
+        logger.addHandler(fh)
+        self.log = logger
 
     def select(self):
         raise NotImplementedError
@@ -77,8 +93,6 @@ class SelectorBIC(ModelSelector):
         :return: GaussianHMM object
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        LOG_FILENAME = '/home/sabau/IdeaProjects/AIND-Recognizer/model_selection.bic.log'
-        log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
         # fallback
         best_score, selected_model = float("inf"), self.base_model(self.n_constant)
 
@@ -94,22 +108,23 @@ class SelectorBIC(ModelSelector):
                 # n: number of data points
 
                 # self.X.shape[1] contains the number of features
-                # model.n_features contains the number of features
 
                 model = self.base_model(n)
                 log_l = model.score(self.X, self.lengths)
-                log.info("n_features {} vs {}"
-                          .format(self.X.shape[1], self.n_features))
-                p = n ** 2 + 2 * n * model.n_features - 1
-                log.info("logN {} vs {} vs "
-                          .format(np.log(len((self.lengths))), np.log(n), np.log(self.X.shape[0])))
-                bic_score = -2 * log_l + p * np.log(n)
+                self.log.info("BIC: n_features {} vs {} "
+                          .format(self.X.shape[1], sum(self.lengths)))
+                # number of free parameters
+                p = n ** 2 + 2 * n * sum(self.lengths) - 1
+                self.log.info("BIC: logN {} vs {} vs {}"
+                          .format(np.log(sum(self.lengths)), np.log(n), np.log(self.X.shape[0])))
+                bic_score = -2 * log_l + p * np.log(self.X.shape[0])
 
                 if bic_score < best_score:
-                    log.info("Old score {} was dethronized by score {} with {} components"
+                    self.log.info("BIC: Old score {} was dethronized by score {} with {} components"
                              .format(best_score, bic_score, n))
                     best_score, selected_model = bic_score, model
             except Exception as e:
+                self.log.exception('BIC: EXCEPTION -> ', e)
                 continue
 
         return selected_model
@@ -125,11 +140,40 @@ class SelectorDIC(ModelSelector):
     DIC = log(P(X(i)) - 1/(M-1)SUM(log(P(X(all but i))
     '''
 
+    # calculate log likelihoods for a list of words
+    def log_l_list(self, model, words):
+        return [model.score(w[0], w[1]) for w in words]
+
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        LOG_FILENAME = '/home/sabau/IdeaProjects/AIND-Recognizer/model_selection.dic.log'
-        log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
         best_score, selected_model = float("inf"), self.base_model(self.n_constant)
+
+        all_words_but_i = []
+        for word in self.words:
+            if word != self.this_word:
+                all_words_but_i.append(self.hwords[word])
+
+        for n in range(self.min_n_components, self.max_n_components+1):
+            self.log.info("DIC: start with {}".format(n))
+            try:
+                model = self.base_model(n)
+                # log(P(X(i))
+                log_l = model.score(self.X, self.lengths)
+                # anti log likelihoods
+                # log(P(X(all but i)
+                anti_log_l = self.log_l_list(model, all_words_but_i)
+                # DIC = log_l - 1/(M-1)SUM(anti_log_l)
+                dic_score = log_l - np.mean(anti_log_l)
+                self.log.info("DIC: current score {} with n={}".format(dic_score, n))
+                if dic_score > best_score:
+                    self.log.info("DIC: Old score {} was dethronized by score {} with {} components"
+                             .format(best_score, dic_score, n))
+                    best_score, selected_model = dic_score, model
+
+            # if number of parameters exceed the number of samples
+            except Exception as e:
+                self.log.exception('DIC: EXCEPTION -> ', e)
+                continue
 
         return selected_model
 
@@ -140,40 +184,38 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        LOG_FILENAME = '/home/sabau/IdeaProjects/AIND-Recognizer/model_selection.cv.log'
-        log.basicConfig(filename=LOG_FILENAME,level=log.DEBUG)
         best_score, selected_model = float("inf"), self.base_model(self.n_constant)
         # define the number of folds we would like to use
         k_splits = 3
         for n in range(self.min_n_components, self.max_n_components + 1):
-            log.info("start with {}".format(n))
-            if len(self.sequences) < 2:
-                continue
-            # in case we do not have enough data, let's say 2 is the minimum
-            split_method = KFold(n_splits=min(k_splits, len(self.sequences)))
-            cv_cumulative_score = 0.0
-            i = 0
-            # Cross validation loop, here we add logl
-            for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
-                X_train, length_train = combine_sequences(cv_train_idx, self.sequences)
-                X_test, length_test = combine_sequences(cv_test_idx, self.sequences)
-                try:
-                    # train a gaussian model
-                    _model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
-                                         random_state=self.random_state, verbose=False).fit(X_train, length_train)
+            self.log.info("CV: start with {}".format(n))
+            if len(self.sequences) > 2:
+                # in case we do not have enough data, let's say 2 is the minimum
+                split_method = KFold(n_splits=min(k_splits, len(self.sequences)))
+                cv_cumulative_score = 0.0
+                i = 0
+                # Cross validation loop, here we add logl
+                for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
+                    X_train, length_train = combine_sequences(cv_train_idx, self.sequences)
+                    X_test, length_test = combine_sequences(cv_test_idx, self.sequences)
+                    try:
+                        # train a gaussian model
+                        model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
+                                             random_state=self.random_state, verbose=False).fit(X_train, length_train)
 
-                    # cross validate this model with the other portion of the sequences and keep track of its score
-                    cv_cumulative_score += float(_model.score(X_test, length_test))
-                    i += 1
-                    log.info("at indexes train {} and test {} we heve cumulative score of {}"
-                             .format(cv_train_idx, cv_test_idx, cv_cumulative_score))
-                except:
-                    pass
-            # average the score over the number of contributions
-            cv_score = cv_cumulative_score / i if i > 0 else float("-Inf")
-            if cv_score > best_score:
-                log.info("Old score {} was dethronized by score {} with {} components"
-                         .format(best_score, cv_score, n))
-                best_score, selected_model = cv_score, self.base_model(n)
+                        # cross validate this model with the other portion of the sequences and keep track of its score
+                        cv_cumulative_score += float(model.score(X_test, length_test))
+                        i += 1
+                        self.log.info("CV: at indexes train {} and test {} we heve cumulative score of {}"
+                                 .format(cv_train_idx, cv_test_idx, cv_cumulative_score))
+                    except Exception as e:
+                        self.log.exception('CV: EXCEPTION -> ', e)
+                        continue
+                # average the score over the number of contributions
+                cv_score = cv_cumulative_score / i if i > 0 else float("-Inf")
+                if cv_score > best_score:
+                    self.log.info("CV: Old score {} was dethronized by score {} with {} components"
+                             .format(best_score, cv_score, n))
+                    best_score, selected_model = cv_score, self.base_model(n)
 
         return selected_model
