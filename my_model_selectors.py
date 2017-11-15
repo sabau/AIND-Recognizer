@@ -36,13 +36,13 @@ class ModelSelector(object):
         fh.setLevel(logging.DEBUG)
         # create console handler with a higher log level
         ch = logging.StreamHandler()
-        ch.setLevel(logging.ERROR)
+        ch.setLevel(logging.CRITICAL)
         # create formatter and add it to the handlers
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         ch.setFormatter(formatter)
         fh.setFormatter(formatter)
         # add the handlers to logger
-        logger.addHandler(ch)
+        # logger.addHandler(ch)
         logger.addHandler(fh)
         self.log = logger
 
@@ -94,7 +94,7 @@ class SelectorBIC(ModelSelector):
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         # fallback
-        best_score, selected_model = float("inf"), self.base_model(self.n_constant)
+        best_score, selected_model = float("-inf"), self.base_model(self.n_constant)
 
         for n in range(self.min_n_components, self.max_n_components+1):
             try:
@@ -102,7 +102,7 @@ class SelectorBIC(ModelSelector):
                 #  whereas the penalties p log N increase with increasing complexity
                 # BIC = −2 * log L + p * log N
                 # l: likelihood of the fitted model
-                # p: number of parameters, I've found different ways of calculating
+                # p: number of free parameters, I've found different ways of calculating
                 #    [n^2 + 2n * ft - 1] or
                 #    [n * (n-1) + 2n * ft - 1] in case some points are fixed after one selection
                 # n: number of data points
@@ -111,20 +111,20 @@ class SelectorBIC(ModelSelector):
 
                 model = self.base_model(n)
                 log_l = model.score(self.X, self.lengths)
-                self.log.info("BIC: n_features {} vs {} "
-                          .format(self.X.shape[1], sum(self.lengths)))
                 # number of free parameters
-                p = n ** 2 + 2 * n * sum(self.lengths) - 1
-                self.log.info("BIC: logN {} vs {} vs {}"
-                          .format(np.log(sum(self.lengths)), np.log(n), np.log(self.X.shape[0])))
-                bic_score = -2 * log_l + p * np.log(self.X.shape[0])
+                # p = n ** 2 + 2 * n * self.X.shape[1] - 1
+                # bic_scorea = -2 * log_l + p * np.log(self.X.shape[0])
 
+                p = n * (n-1) + (n-1) + 2 * self.X.shape[1] * n
+                bic_score = (-2 * log_l) + (p * np.log(self.X.shape[0]))
+                self.log.info("BIC: SCORE {} with n_features {} logN {} p {}"
+                              .format(bic_score, self.X.shape[1], self.X.shape[0], p))
                 if bic_score < best_score:
-                    self.log.info("BIC: Old score {} was dethronized by score {} with {} components"
-                             .format(best_score, bic_score, n))
+                    self.log.info("BIC: Old score {} was dethroned by score {} with {} components"
+                                  .format(best_score, bic_score, n))
                     best_score, selected_model = bic_score, model
             except Exception as e:
-                self.log.exception('BIC: EXCEPTION -> ', e)
+                self.log.warn('BIC: EXCEPTION {}'.format(e))
                 continue
 
         return selected_model
@@ -142,11 +142,16 @@ class SelectorDIC(ModelSelector):
 
     # calculate log likelihoods for a list of words
     def log_l_list(self, model, words):
-        return [model.score(w[0], w[1]) for w in words]
+        scores = []
+        for w in words:
+            score = model.score(w[0], w[1])
+            self.log.debug("DIC: anti_l scores w0 len {}  w1 {} score {}".format(len(w[0]), w[1], score))
+            scores.append(score)
+        return scores # [model.score(w[0], w[1]) for w in words]
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        best_score, selected_model = float("inf"), self.base_model(self.n_constant)
+        best_score, selected_model = float("-inf"), self.base_model(self.n_constant)
 
         all_words_but_i = []
         for word in self.words:
@@ -161,18 +166,19 @@ class SelectorDIC(ModelSelector):
                 log_l = model.score(self.X, self.lengths)
                 # anti log likelihoods
                 # log(P(X(all but i)
-                anti_log_l = self.log_l_list(model, all_words_but_i)
+                total_anti_log_l = self.log_l_list(model, all_words_but_i)
                 # DIC = log_l - 1/(M-1)SUM(anti_log_l)
-                dic_score = log_l - np.mean(anti_log_l)
-                self.log.info("DIC: current score {} with n={}".format(dic_score, n))
+                average_anti_log_l = sum(total_anti_log_l)/len(all_words_but_i)
+                dic_score = log_l - average_anti_log_l
+                self.log.info("DIC: current score {} with n={} and log_l".format(dic_score, n, log_l))
                 if dic_score > best_score:
-                    self.log.info("DIC: Old score {} was dethronized by score {} with {} components"
-                             .format(best_score, dic_score, n))
+                    self.log.info("DIC: Old score {} was dethroned by score {} with {} components"
+                                  .format(best_score, dic_score, n))
                     best_score, selected_model = dic_score, model
 
             # if number of parameters exceed the number of samples
             except Exception as e:
-                self.log.exception('DIC: EXCEPTION -> ', e)
+                self.log.warn('DIC: EXCEPTION {}'.format(e))
                 continue
 
         return selected_model
@@ -184,38 +190,32 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        best_score, selected_model = float("inf"), self.base_model(self.n_constant)
-        # define the number of folds we would like to use
-        k_splits = 3
-        for n in range(self.min_n_components, self.max_n_components + 1):
-            self.log.info("CV: start with {}".format(n))
-            if len(self.sequences) > 2:
-                # in case we do not have enough data, let's say 2 is the minimum
-                split_method = KFold(n_splits=min(k_splits, len(self.sequences)))
-                cv_cumulative_score = 0.0
-                i = 0
-                # Cross validation loop, here we add logl
-                for cv_train_idx, cv_test_idx in split_method.split(self.sequences):
-                    X_train, length_train = combine_sequences(cv_train_idx, self.sequences)
-                    X_test, length_test = combine_sequences(cv_test_idx, self.sequences)
-                    try:
-                        # train a gaussian model
-                        model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
-                                             random_state=self.random_state, verbose=False).fit(X_train, length_train)
+        best_score, selected_model = float("-inf"), self.base_model(self.n_constant)
 
-                        # cross validate this model with the other portion of the sequences and keep track of its score
-                        cv_cumulative_score += float(model.score(X_test, length_test))
-                        i += 1
-                        self.log.info("CV: at indexes train {} and test {} we heve cumulative score of {}"
-                                 .format(cv_train_idx, cv_test_idx, cv_cumulative_score))
+        for n in range(self.min_n_components, self.max_n_components + 1):
+            if len(self.sequences) < 2:
+                hmm_model = self.base_model(n)
+                log_likelihood = hmm_model.score(self.X, self.lengths)
+                self.log.info('CV: Not enough sequences, we calculate pure logL {} with n={})'.format(log_likelihood, n))
+            else:
+                splits = KFold(min(3, len(self.sequences))).split(self.sequences)
+                scores = []
+                for train, test in splits:
+                    train_X, train_lengths = combine_sequences(train, self.sequences)
+                    test_X, test_lengths = combine_sequences(test, self.sequences)
+                    try:
+                        hmm_model = GaussianHMM(n_components=n, covariance_type="diag", n_iter=1000,
+                                                random_state=self.random_state, verbose=False).fit(train_X, train_lengths)
+                        scores.append(hmm_model.score(test_X, test_lengths))
                     except Exception as e:
-                        self.log.exception('CV: EXCEPTION -> ', e)
+                        self.log.warn('CV: EXCEPTION {}'.format(e))
                         continue
-                # average the score over the number of contributions
-                cv_score = cv_cumulative_score / i if i > 0 else float("-Inf")
-                if cv_score > best_score:
-                    self.log.info("CV: Old score {} was dethronized by score {} with {} components"
-                             .format(best_score, cv_score, n))
-                    best_score, selected_model = cv_score, self.base_model(n)
+                log_likelihood = np.average(scores) if len(scores) > 0 else float("-Inf")
+                self.log.info('CV: logL {} with n={})'.format(log_likelihood, n))
+
+            if log_likelihood > best_score:
+                self.log.info("CV: Old score {} was dethroned by score {} with {} components"
+                         .format(best_score, log_likelihood, n))
+                best_score, selected_model = log_likelihood, self.base_model(n)
 
         return selected_model
