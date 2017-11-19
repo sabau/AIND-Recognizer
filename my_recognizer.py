@@ -4,6 +4,26 @@ import logging
 
 from asl_data import SinglesData
 
+def wer(guesses: dict, test_set: SinglesData):
+    # LOG_FILENAME = 'wer.log'
+    # log = logging.getLogger('Recognizer')
+    # fh = logging.FileHandler(LOG_FILENAME)
+    # fh.setLevel(logging.DEBUG)
+    # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # fh.setFormatter(formatter)
+    # log.addHandler(fh)
+
+    S = 0.0
+    N = len(test_set.wordlist)
+    if len(guesses) != N:
+        # log.warn("Size of guesses must equal number of test words ({})!".format(N))
+        return 1
+    for word_id in range(N):
+        if guesses[word_id] != test_set.wordlist[word_id]:
+            S += 1.0
+    # log.info("\n**** WER = {}".format(float(S) / float(N)))
+    return S / float(N)
+
 
 def recognize(models: dict, test_set: SinglesData):
     """ Recognize test word sequences from word models set
@@ -23,13 +43,13 @@ def recognize(models: dict, test_set: SinglesData):
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     probabilities = []
     guesses = []
-    LOG_FILENAME = 'recognizer.log'
-    log = logging.getLogger('Recognizer')
-    fh = logging.FileHandler(LOG_FILENAME)
-    fh.setLevel(logging.DEBUG)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    log.addHandler(fh)
+    # LOG_FILENAME = 'recognizer.log'
+    # log = logging.getLogger('Recognizer')
+    # fh = logging.FileHandler(LOG_FILENAME)
+    # fh.setLevel(logging.DEBUG)
+    # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    # fh.setFormatter(formatter)
+    # log.addHandler(fh)
 
     # Iteate through the test set where i represent the word we are analyzing
     for i in range(0, len(test_set.get_all_Xlengths())):
@@ -43,16 +63,15 @@ def recognize(models: dict, test_set: SinglesData):
                 # Try to get the log likelihood of test_X for the current model
                 score = model.score(test_X, test_lengths)
             except Exception as e:
-                log.warn('EXCEPTION {}'.format(e))
+                # log.warn('EXCEPTION {}'.format(e))
                 # We add this word to maintain the structure of the dictionary,
                 # with probability 0
                 score = float('-Inf')
             log_l_dict[word] = score
-            log.info("Step {}: logl for word {} is {}".format(i, word, score))
+            # log.info("Step {}: logl for word {} is {}".format(i, word, score))
             # Keep track of the most likely word
             if score > best_score:
-                log.info("Old score {} for word {} was dethroned by score {} with {} word"
-                         .format(best_score, best_word, score, word))
+                # log.info("Old score {} for word {} was dethroned by score {} with {} word".format(best_score, best_word, score, word))
                 best_score, best_word = score, word
         # Add the whole dictionary to the probability list
         probabilities.append(log_l_dict)
