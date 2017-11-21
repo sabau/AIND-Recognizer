@@ -94,7 +94,7 @@ class SelectorBIC(ModelSelector):
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         # fallback
-        best_score, selected_model = float("-inf"), self.base_model(self.n_constant)
+        best_score, selected_model = float("Inf"), self.base_model(self.n_constant)
 
         for n in range(self.min_n_components, self.max_n_components+1):
             try:
@@ -115,7 +115,7 @@ class SelectorBIC(ModelSelector):
                 # p = n ** 2 + 2 * n * self.X.shape[1] - 1
                 # bic_scorea = -2 * log_l + p * np.log(self.X.shape[0])
 
-                p = n ** 2 + 2 * self.X.shape[1] * n - 1
+                p = n * (n - 1) + 2 * self.X.shape[1] * n - 1
                 bic_score = (-2 * log_l) + (p * np.log(self.X.shape[0]))
                 # self.log.info("BIC: SCORE {} with n_features {} logN {} p {}".format(bic_score, self.X.shape[1], self.X.shape[0], p))
                 if bic_score < best_score:
