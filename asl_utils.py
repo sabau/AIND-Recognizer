@@ -6,6 +6,18 @@ RAW_FEATURES = ['left-x', 'left-y', 'right-x', 'right-y']
 GROUND_FEATURES = ['grnd-rx', 'grnd-ry', 'grnd-lx', 'grnd-ly']
 
 
+def wer(guesses: list, test_set: SinglesData):
+    S = 0
+    N = len(test_set.wordlist)
+    num_test_words = len(test_set.wordlist)
+    if len(guesses) != num_test_words:
+        return 1
+    for word_id in range(num_test_words):
+        if guesses[word_id] != test_set.wordlist[word_id]:
+            S += 1
+    return float(S) / float(N)
+
+
 def show_errors(guesses: list, test_set: SinglesData):
     """ Print WER and sentence differences in tabular form
 
