@@ -6,7 +6,7 @@ RAW_FEATURES = ['left-x', 'left-y', 'right-x', 'right-y']
 GROUND_FEATURES = ['grnd-rx', 'grnd-ry', 'grnd-lx', 'grnd-ly']
 
 
-def wer(guesses: list, test_set: SinglesData):
+def wer_calc(guesses: list, test_set: SinglesData):
     S = 0
     N = len(test_set.wordlist)
     num_test_words = len(test_set.wordlist)
