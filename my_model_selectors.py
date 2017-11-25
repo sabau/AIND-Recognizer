@@ -93,6 +93,7 @@ class SelectorBIC(ModelSelector):
         :return: GaussianHMM object
         """
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
         # fallback
         best_score, selected_model = float("Inf"), self.base_model(self.n_constant)
 
@@ -111,12 +112,10 @@ class SelectorBIC(ModelSelector):
 
                 model = self.base_model(n)
                 log_l = model.score(self.X, self.lengths)
-                # number of free parameters
-                # p = n ** 2 + 2 * n * self.X.shape[1] - 1
-                # bic_scorea = -2 * log_l + p * np.log(self.X.shape[0])
-
-                # parameter to maassign manually a different weight to the second term
+                # parameter to assign manually a different weight to the second term
+                # TODO: implement gradient descent to optimize alpha
                 alpha = 1.0
+                # number of free parameters
                 p = n ** 2 + 2 * self.X.shape[1] * n - 1
                 bic_score = (-2 * log_l) + (alpha * p * np.log(self.X.shape[0]))
                 # self.log.info("BIC: SCORE {} with n_features {} logN {} p {}".format(bic_score, self.X.shape[1], self.X.shape[0], p))
@@ -201,6 +200,7 @@ class SelectorCV(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
         best_score, selected_model = float("-inf"), self.base_model(self.n_constant)
 
         for n in range(self.min_n_components, self.max_n_components + 1):
