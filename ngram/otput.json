@@ -74,3 +74,66 @@ feat: cr_pol_gr_del 	Selector Fixed 	WER 0.5561797752808989 	time 62.79661281500
 feat: cr_pol_gr_del 	Selector CV 	WER 0.550561797752809 	time 198.6312387830112
 feat: cr_pol_gr_del 	Selector BIC 	WER 0.5393258426966292 	time 134.77815252900473
 feat: cr_pol_gr_del 	Selector DIC 	WER 0.5224719101123596 	time 302.2226690679963
+
+
+
+
+
+
+
+
+
+
+feat: sources 	Selector Fixed 	WER 0.6460674157303371 	time 26.23716156699811
+feat: sources 	Selector CV 	WER 0.6741573033707865 	time 159.73393736299477
+feat: sources 	Selector BIC 	WER 0.6235955056179775 	time 91.89083005399152
+feat: sources 	Selector DIC 	WER 0.6404494382022472 	time 255.48173494600633
+feat: ground 	Selector Fixed 	WER 0.6685393258426966 	time 26.08558416600863
+feat: ground 	Selector CV 	WER 0.5337078651685393 	time 159.4658203410072
+feat: ground 	Selector BIC 	WER 0.550561797752809 	time 93.00441352000053
+feat: ground 	Selector DIC 	WER 0.5730337078651685 	time 258.4426903150015
+feat: delta 	Selector Fixed 	WER 0.6404494382022472 	time 27.701413479997427
+feat: delta 	Selector CV 	WER 0.6179775280898876 	time 203.84213868400548
+feat: delta 	Selector BIC 	WER 0.6179775280898876 	time 113.1413462490018
+feat: delta 	Selector DIC 	WER 0.6292134831460674 	time 261.8533061670023
+feat: polar 	Selector Fixed 	WER 0.6179775280898876 	time 26.793412864994025
+feat: polar 	Selector CV 	WER 0.5617977528089888 	time 177.60072005999973
+feat: polar 	Selector BIC 	WER 0.5449438202247191 	time 104.65571705799084
+feat: polar 	Selector DIC 	WER 0.5449438202247191 	time 277.92053433399997
+feat: norm 	Selector Fixed 	WER 0.6235955056179775 	time 27.428276685008314
+feat: norm 	Selector CV 	WER 0.6067415730337079 	time 177.00299641700985
+feat: norm 	Selector BIC 	WER 0.6123595505617978 	time 103.17872574899229
+feat: norm 	Selector DIC 	WER 0.5955056179775281 	time 281.8185528039903
+feat: custom_cross 	Selector Fixed 	WER 0.702247191011236 	time 26.39689516198996
+feat: custom_cross 	Selector CV 	WER 0.6123595505617978 	time 185.63348012900678
+feat: custom_cross 	Selector BIC 	WER 0.6067415730337079 	time 106.65257218400075
+feat: custom_cross 	Selector DIC 	WER 0.6235955056179775 	time 268.2779536200105
+feat: custom_delta 	Selector Fixed 	WER 0.702247191011236 	time 52.85120944000664
+feat: custom_delta 	Selector CV 	WER 0.6067415730337079 	time 230.5842023849982
+feat: custom_delta 	Selector BIC 	WER 0.5786516853932584 	time 149.45489407000423
+feat: custom_delta 	Selector DIC 	WER 0.6235955056179775 	time 299.3375745980011
+feat: custom_rescaled 	Selector Fixed 	WER 0.6404494382022472 	time 48.46069719399384
+feat: custom_rescaled 	Selector CV 	WER 0.4887640449438202 	time 188.76982094699633
+feat: custom_rescaled 	Selector BIC 	WER 0.5168539325842697 	time 106.99812030000612
+feat: custom_rescaled 	Selector DIC 	WER 0.5056179775280899 	time 284.48125617399637
+feat: custom_norm 	Selector Fixed 	WER 0.6235955056179775 	time 27.301220689012553
+feat: custom_norm 	Selector CV 	WER 0.6067415730337079 	time 174.1085480490001
+feat: custom_norm 	Selector BIC 	WER 0.6123595505617978 	time 99.17817726099747
+feat: custom_norm 	Selector DIC 	WER 0.5955056179775281 	time 277.01554776400735
+feat: custom_all 	Selector Fixed 	WER 0.6797752808988764 	time 124.4029631690064
+feat: custom_all 	Selector CV 	WER 0.550561797752809 	time 310.75011387999984
+feat: custom_all 	Selector BIC 	WER 0.5617977528089888 	time 214.05881036500796
+feat: custom_all 	Selector DIC 	WER 0.5842696629213483 	time 374.71222797800147
+feat: all 	Selector Fixed 	WER 0.5112359550561798 	time 184.77490608500375
+feat: all 	Selector CV 	WER 0.4943820224719101 	time 335.3708171949984
+feat: all 	Selector BIC 	WER 0.4606741573033708 	time 259.63719785099966
+feat: all 	Selector DIC 	WER 0.47191011235955055 	time 428.5574673000083
+feat: all_base_but_norm 	Selector Fixed 	WER 0.5730337078651685 	time 63.84368010699109
+feat: all_base_but_norm 	Selector CV 	WER 0.5337078651685393 	time 201.46193749499798
+feat: all_base_but_norm 	Selector BIC 	WER 0.5280898876404494 	time 134.926193272011
+feat: all_base_but_norm 	Selector DIC 	WER 0.5280898876404494 	time 296.16167510500236
+feat: all_base_but_ground 	Selector Fixed 	WER 0.5674157303370787 	time 62.89200856699608
+feat: all_base_but_ground 	Selector CV 	WER 0.5168539325842697 	time 195.7404144440079
+feat: all_base_but_ground 	Selector BIC 	WER 0.5168539325842697 	time 137.47644182700606
+feat: all_base_but_ground 	Selector DIC 	WER 0.5280898876404494 	time 299.0982151509961
+feat: all_base_but_delta 	Selector Fixed 	WER 0.6067415730337079 	time 63.27511115600646
