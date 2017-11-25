@@ -115,8 +115,10 @@ class SelectorBIC(ModelSelector):
                 # p = n ** 2 + 2 * n * self.X.shape[1] - 1
                 # bic_scorea = -2 * log_l + p * np.log(self.X.shape[0])
 
-                p = n * (n - 1) + 2 * self.X.shape[1] * n - 1
-                bic_score = (-2 * log_l) + (p * np.log(self.X.shape[0]))
+                # parameter to maassign manually a different weight to the second term
+                alpha = 1.0
+                p = n ** 2 + 2 * self.X.shape[1] * n - 1
+                bic_score = (-2 * log_l) + (alpha * p * np.log(self.X.shape[0]))
                 # self.log.info("BIC: SCORE {} with n_features {} logN {} p {}".format(bic_score, self.X.shape[1], self.X.shape[0], p))
                 if bic_score < best_score:
                     # self.log.info("BIC: Old score {} was dethroned by score {} with {} components".format(best_score, bic_score, n))
@@ -149,36 +151,48 @@ class SelectorDIC(ModelSelector):
 
     def select(self):
         warnings.filterwarnings("ignore", category=DeprecationWarning)
-        best_score, selected_model = float("-inf"), self.base_model(self.n_constant)
+        warnings.filterwarnings("ignore", category=RuntimeWarning)
+        best_score, best_model = float("-inf"), self.base_model(self.n_constant)
 
-        all_words_but_i = []
-        for word in self.words:
-            if word != self.this_word:
-                all_words_but_i.append(self.hwords[word])
-
-        for n in range(self.min_n_components, self.max_n_components+1):
-            # self.log.info("DIC: start with {}".format(n))
+        for n in range(self.min_n_components, self.max_n_components + 1):
+            model = self.base_model(n)
+            scores = []
             try:
-                model = self.base_model(n)
-                # log(P(X(i))
-                log_l = model.score(self.X, self.lengths)
-                # anti log likelihoods
-                # log(P(X(all but i)
-                total_anti_log_l = self.log_l_list(model, all_words_but_i)
-                # DIC = log_l - 1/(M-1)SUM(anti_log_l)
-                average_anti_log_l = sum(total_anti_log_l)/len(all_words_but_i)
-                dic_score = log_l - average_anti_log_l
-                # self.log.info("DIC: current score {} with n={} and log_l".format(dic_score, n, log_l))
-                if dic_score > best_score:
-                    # self.log.info("DIC: Old score {} was dethroned by score {} with {} components".format(best_score, dic_score, n))
-                    best_score, selected_model = dic_score, model
-
-            # if number of parameters exceed the number of samples
+                for w, (X, lengths) in self.hwords.items():
+                    if w != self.this_word:
+                        scores.append(model.score(X, lengths))
+                score = model.score(self.X, self.lengths) - np.mean(scores)
+                if score > best_score:
+                    best_score, best_model = score, model
             except Exception as e:
                 # self.log.warn('DIC: EXCEPTION {}'.format(e))
                 continue
+        return best_model
 
-        return selected_model
+
+        # PRE-REVIEW
+        # all_words_but_i = []
+        # for word in self.words:
+        #     if word != self.this_word:
+        #         all_words_but_i.append(self.hwords[word])
+        #
+        # for n in range(self.min_n_components, self.max_n_components+1):
+        #     try:
+        #         model = self.base_model(n)
+        #         log_l = model.score(self.X, self.lengths)
+        #         # anti log likelihoods
+        #         total_anti_log_l = self.log_l_list(model, all_words_but_i)
+        #         average_anti_log_l = sum(total_anti_log_l)/len(all_words_but_i)
+        #         dic_score = log_l - average_anti_log_l
+        #         if dic_score > best_score:
+        #             best_score, selected_model = dic_score, model
+        #
+        #     # if number of parameters exceed the number of samples
+        #     except Exception as e:
+        #         # self.log.warn('DIC: EXCEPTION {}'.format(e))
+        #         continue
+        #
+        # return selected_model
 
 class SelectorCV(ModelSelector):
     ''' select best model based on average log Likelihood of cross-validation folds
