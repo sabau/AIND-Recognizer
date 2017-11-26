@@ -114,7 +114,7 @@ class SelectorBIC(ModelSelector):
                 log_l = model.score(self.X, self.lengths)
                 # parameter to assign manually a different weight to the second term
                 # TODO: implement gradient descent to optimize alpha
-                alpha = 1.0
+                alpha = 1.7
                 # number of free parameters
                 p = n ** 2 + 2 * self.X.shape[1] * n - 1
                 bic_score = (-2 * log_l) + (alpha * p * np.log(self.X.shape[0]))
